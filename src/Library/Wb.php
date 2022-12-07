@@ -3,19 +3,25 @@
 namespace Wb\Library;
 
 use GuzzleHttp\Client;
-use Wb\Config\WbConfig;
+use Wb\Config\WbConfigSdk;
 
 class Wb
 {
 
     private static Client $http;
     private static array $error = [];
+    private static WbConfigSdk $wbConfig;
+
+    public function __construct(WbConfigSdk $wbConfig)
+    {
+        static::$wbConfig = $wbConfig;
+    }
 
     public static function get(string $path = '', array $data = []) : array
     {
         try {
-            $request = static::$http->request("GET", WbConfig::getConst("URL").$path,['query' => array_merge(
-                ['key' => WbConfig::getConst("AUTH_KEY")],
+            $request = static::$http->request("GET", static::$wbConfig->wb_api_v1_url.$path,['query' => array_merge(
+                ['key' => static::$wbConfig->wb_api_v1_auth_key],
                 $data,
             )])->getBody();
             $result = json_decode($request, true);
@@ -32,16 +38,16 @@ class Wb
             if(!isset(static::$http)){
                 static::initHttp();
                 return static::get($path,$data);
-            }elseif(!WbConfig::getConst('ERROR_HANDLER')){
+            }elseif(!static::$wbConfig->wb_api_v1_error_handler){
                 throw new \Exception($throwable->getMessage(), $throwable->getCode());
             }
 
-            if(in_array($throwable->getCode(),WbConfig::getConst('ACCEPTABLE_ERROR_CODE')) && count(static::$error) < WbConfig::getConst('COUNT_ATTEMPTS')){
+            if(in_array($throwable->getCode(),static::$wbConfig->wb_api_v1_acceptable_error_code) && count(static::$error) < static::$wbConfig->wb_api_v1_count_attempts_error){
                 static::$error[] = $thisError;
-                sleep(WbConfig::getConst('ERROR_SLEEP_TIME'));
+                sleep(static::$wbConfig->wb_api_v1_error_sleep_time);
                 return static::get($path,$data);
             }else{
-                return count(static::$error) < WbConfig::getConst('COUNT_ATTEMPTS') ? $thisError : static::$error;
+                return count(static::$error) < static::$wbConfig->wb_api_v1_count_attempts_error ? $thisError : static::$error;
             }
         }
     }
